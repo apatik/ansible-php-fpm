@@ -22,10 +22,22 @@
   tags: [packages,php,fpm]
 
 - name: Install the php packages (YUM)
-  yum: name={{ item }} state=present
+  yum: >
+    name={{ item }}
+    state=present
   with_items: "{{ php_fpm_yum_packages }}"
   environment: "{{ env }}"
   when: ansible_os_family == "RedHat"
+  notify:
+     - restart php-fpm
+  tags: [packages,php,fpm]
+
+- name: Install the php packages (pkgin)
+  package: >
+    name={{ item }}
+    state=present
+  with_items: "{{ php_fpm_pkgin_packages }}"
+  when: ansible_distribution == "SmartOS"
   notify:
      - restart php-fpm
   tags: [packages,php,fpm]
@@ -36,7 +48,7 @@
     section="{{ item.section }}"
     option="{{ item.option }}"
     value="{{ item.value }}"
-    backup=yes
+    backup={{ php_fpm_backup_configs }}
   with_items: "{{ php_fpm_ini }}"
   notify:
    - restart php-fpm
@@ -53,7 +65,7 @@
     section="{{ item.section }}"
     option="{{ item.option }}"
     value="{{ item.value }}"
-    backup=yes
+    backup={{ php_fpm_backup_configs }}
   with_items: "{{ php_fpm_config }}"
   register: copy_fpm_config
   notify:
@@ -72,7 +84,7 @@
    - restart php-fpm
   tags: [configuration,php,fpm]
 
-- name: Readd the include line to the ini file
+- name: Read the include line to the ini file
   ini_file: >
     dest={{ php_fpm_config_path }}
     section=global
@@ -96,7 +108,7 @@
   template: >
     src=pool.conf.j2
     dest={{ php_fpm_pool_d }}/{{ item['name'] }}.conf
-    backup=yes
+    backup={{ php_fpm_backup_configs }}
   with_items: "{{ php_fpm_pools }}"
   when: php_fpm_pools|lower != 'none'
   notify:
